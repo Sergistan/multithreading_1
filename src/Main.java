@@ -1,26 +1,31 @@
 import java.util.*;
+import java.util.concurrent.*;
 
 public class Main {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) throws InterruptedException, ExecutionException {
         String[] texts = new String[25];
-        List<Thread> threads = new ArrayList<>();
-        long startTs = System.currentTimeMillis(); // start time
+        ExecutorService threadPool = Executors.newFixedThreadPool(25);
+
+        List<Future<Integer>> futureList = new ArrayList<>();
 
         for (int i = 0; i < texts.length; i++) {
             texts[i] = generateText("aab", 30_000);
-            Thread thread = createThread(texts[i]);
-            thread.start();
-            threads.add(thread);
+            Callable<Integer> myCallable = new MyCallable(texts[i]);
+            Future<Integer> task = threadPool.submit(myCallable);
+            futureList.add(task);
         }
 
-        for (Thread thread : threads) {
-            thread.join();
+        int max = 0;
+        for (Future<Integer> integerFuture : futureList) {
+            Integer integer = integerFuture.get();
+            if (integer > max) {
+                max = integer;
+            }
         }
 
-        long endTs = System.currentTimeMillis(); // end time
-        System.out.println("Time: " + (endTs - startTs) + "ms");
-
+        System.out.println("Максимальный интервал значений среди всех строк: " + max);
+        threadPool.shutdown();
     }
 
     public static String generateText(String letters, int length) {
@@ -32,28 +37,4 @@ public class Main {
         return text.toString();
     }
 
-    static Thread createThread(final String text) {
-        Runnable runnable = () -> {
-            int maxSize = 0;
-            for (int i = 0; i < text.length(); i++) {
-                for (int j = 0; j < text.length(); j++) {
-                    if (i >= j) {
-                        continue;
-                    }
-                    boolean bFound = false;
-                    for (int k = i; k < j; k++) {
-                        if (text.charAt(k) == 'b') {
-                            bFound = true;
-                            break;
-                        }
-                    }
-                    if (!bFound && maxSize < j - i) {
-                        maxSize = j - i;
-                    }
-                }
-            }
-            System.out.println(text.substring(0, 100) + " -> " + maxSize);
-        };
-        return new Thread(runnable);
-    }
 }
